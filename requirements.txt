@@ -1,0 +1,25 @@
+# Python AI Assistants - Multi-Agent System with MCP Servers
+# Requires Python 3.8 or higher
+
+# No external dependencies required!
+# All modules use Python standard library only:
+# - typing (type hints)
+# - time (timing and delays)
+# - json (serialization)
+# - concurrent.futures (parallel execution)
+# - queue (task queuing)
+
+# Optional: For development and testing
+# pytest>=7.0.0
+# black>=22.0.0
+# mypy>=0.950
+
+
+# No external dependencies required
+# All modules use Python standard library only:
+# - typing (built-in)
+# - time (built-in)
+# - json (built-in)
+# - concurrent.futures (built-in)
+# - queue (built-in)
+

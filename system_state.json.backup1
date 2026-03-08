@@ -1,0 +1,33 @@
+{
+  "agents": {
+    "researcher": {
+      "role": "Research specialist",
+      "capabilities": [
+        "research",
+        "web"
+      ],
+      "memory": [],
+      "task_count": 3
+    },
+    "coder": {
+      "role": "Code specialist",
+      "capabilities": [
+        "coding",
+        "files"
+      ],
+      "memory": [],
+      "task_count": 0
+    },
+    "analyst": {
+      "role": "Data analyst",
+      "capabilities": [
+        "analysis",
+        "data"
+      ],
+      "memory": [],
+      "task_count": 1
+    }
+  },
+  "shared_memory_keys": [],
+  "timestamp": 1772995141.097549
+}
