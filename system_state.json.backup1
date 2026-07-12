@@ -6,7 +6,7 @@
         "research",
         "web"
       ],
-      "memory": [],
+      "memory": {},
       "task_count": 3
     },
     "coder": {
@@ -15,7 +15,7 @@
         "coding",
         "files"
       ],
-      "memory": [],
+      "memory": {},
       "task_count": 0
     },
     "analyst": {
@@ -24,10 +24,10 @@
         "analysis",
         "data"
       ],
-      "memory": [],
+      "memory": {},
       "task_count": 1
     }
   },
   "shared_memory_keys": [],
-  "timestamp": 1772995141.097549
+  "timestamp": 1783846374.0873017
 }
