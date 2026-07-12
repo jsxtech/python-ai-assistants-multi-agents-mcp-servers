@@ -2,57 +2,59 @@ import json
 import time
 from typing import Dict, Any
 
+
 class StateManager:
     def __init__(self, filepath: str = "system_state.json"):
         self.filepath = filepath
-        self.state = {}
-    
-    def save_state(self, system):
+
+    def save_state(self, system, filepath: str = None):
         """Save system state to file"""
+        filepath = filepath or self.filepath
+
+        # Acquire system lock to get a consistent snapshot of agents
+        with system._lock:
+            agents_snapshot = dict(system.agents)
+            shared_keys = list(system.shared_memory.keys())
+
         state = {
             "agents": {
                 name: {
                     "role": agent.role,
                     "capabilities": agent.capabilities,
-                    "memory": [
-                        {k: v for k, v in m.items() if k != "value" or not callable(v)}
-                        for m in agent.memory[-10:]
-                    ],
+                    "memory": {
+                        k: {mk: mv for mk, mv in m.items() if not callable(mv)}
+                        for k, m in list(agent.memory.items())[:50]
+                    },
                     "task_count": len(agent.task_history)
                 }
-                for name, agent in system.agents.items()
+                for name, agent in agents_snapshot.items()
             },
-            "shared_memory_keys": list(system.shared_memory.keys()),
+            "shared_memory_keys": shared_keys,
             "timestamp": time.time()
         }
-        
-        with open(self.filepath, 'w') as f:
+
+        with open(filepath, 'w') as f:
             json.dump(state, f, indent=2, default=str)
-    
-    def load_state(self) -> Dict:
+
+    def load_state(self, filepath: str = None) -> Dict:
         """Load system state from file"""
+        filepath = filepath or self.filepath
         try:
-            with open(self.filepath, 'r') as f:
+            with open(filepath, 'r') as f:
                 return json.load(f)
         except FileNotFoundError:
             return {}
-    
+
     def checkpoint(self, system, name: str):
         """Create named checkpoint"""
         checkpoint_file = f"{self.filepath}.{name}"
-        original_filepath = self.filepath
-        self.filepath = checkpoint_file
-        self.save_state(system)
-        self.filepath = original_filepath
-    
+        self.save_state(system, filepath=checkpoint_file)
+
     def restore_checkpoint(self, name: str) -> Dict:
         """Restore from named checkpoint"""
         checkpoint_file = f"{self.filepath}.{name}"
-        original_filepath = self.filepath
-        self.filepath = checkpoint_file
-        state = self.load_state()
-        self.filepath = original_filepath
-        return state
+        return self.load_state(filepath=checkpoint_file)
+
 
 class MetricsCollector:
     def __init__(self):
@@ -63,32 +65,32 @@ class MetricsCollector:
             "total_duration": 0,
             "agent_metrics": {}
         }
-    
+
     def record(self, agent_name: str, result: Dict):
         """Record task execution metrics"""
         self.metrics["requests"] += 1
-        
+
         if result["status"] == "completed":
             self.metrics["successes"] += 1
         else:
             self.metrics["failures"] += 1
-        
+
         self.metrics["total_duration"] += result.get("duration", 0)
-        
+
         if agent_name not in self.metrics["agent_metrics"]:
             self.metrics["agent_metrics"][agent_name] = {
                 "requests": 0,
                 "successes": 0,
                 "failures": 0
             }
-        
+
         agent_metrics = self.metrics["agent_metrics"][agent_name]
         agent_metrics["requests"] += 1
         if result["status"] == "completed":
             agent_metrics["successes"] += 1
         else:
             agent_metrics["failures"] += 1
-    
+
     def get_summary(self) -> Dict:
         """Get metrics summary"""
         total = self.metrics["requests"]
@@ -98,7 +100,7 @@ class MetricsCollector:
             "avg_duration": self.metrics["total_duration"] / total if total > 0 else 0,
             "agent_metrics": self.metrics["agent_metrics"]
         }
-    
+
     def reset(self):
         """Reset all metrics"""
         self.metrics = {
