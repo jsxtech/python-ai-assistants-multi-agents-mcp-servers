@@ -22,6 +22,7 @@ class MCPServer:
         self.cache: Dict[str, Dict] = {}
         self.hooks: Dict[str, list] = {"before": [], "after": []}
         self._rate_limit_lock = threading.Lock()
+        self._state_lock = threading.Lock()  # guards execution_log and cache
 
     def register_tool(self, name: str, func: Callable, description: str = "", params_schema: Optional[Dict] = None, cacheable: bool = False):
         if name in self.tools:
@@ -69,15 +70,19 @@ class MCPServer:
                 "duration": 0.0,
                 "timestamp": time.time()
             }
-            self.execution_log.append(log_entry)
+            with self._state_lock:
+                self.execution_log.append(log_entry)
             for hook in self.hooks["after"]:
                 hook(log_entry)
             raise Exception(f"Rate limit exceeded for server '{self.name}'")
 
-        # Check cache
+        # Check cache (defensive .get avoids a check-then-act race with clear_cache)
         cache_key = self._get_cache_key(tool_name, params)
-        if use_cache and self.tool_metadata[tool_name].get("cacheable") and cache_key in self.cache:
-            return self.cache[cache_key]["result"]
+        if use_cache and self.tool_metadata[tool_name].get("cacheable"):
+            with self._state_lock:
+                cached = self.cache.get(cache_key)
+            if cached is not None:
+                return cached["result"]
 
         # Before hooks
         for hook in self.hooks["before"]:
@@ -91,7 +96,8 @@ class MCPServer:
 
             # Cache result
             if self.tool_metadata[tool_name].get("cacheable"):
-                self.cache[cache_key] = {"result": result, "timestamp": time.time()}
+                with self._state_lock:
+                    self.cache[cache_key] = {"result": result, "timestamp": time.time()}
         except Exception as e:
             result = str(e)
             status = "error"
@@ -106,7 +112,8 @@ class MCPServer:
             "timestamp": time.time()
         }
 
-        self.execution_log.append(log_entry)
+        with self._state_lock:
+            self.execution_log.append(log_entry)
 
         # After hooks
         for hook in self.hooks["after"]:
@@ -118,7 +125,8 @@ class MCPServer:
         return result
 
     def clear_cache(self):
-        self.cache.clear()
+        with self._state_lock:
+            self.cache.clear()
 
     def list_tools(self) -> list:
         return list(self.tools.keys())
@@ -129,9 +137,15 @@ class MCPServer:
         return self.tool_metadata.get(tool_name, {})
 
     def get_stats(self) -> Dict:
-        total = len(self.execution_log)
-        success = sum(1 for log in self.execution_log if log["status"] == "success")
-        avg_duration = sum(log["duration"] for log in self.execution_log) / total if total > 0 else 0
+        # Snapshot under lock: execute() appends to execution_log from worker
+        # threads, and a bounded deque at maxlen evicts mid-iteration, which
+        # would otherwise raise RuntimeError: deque mutated during iteration.
+        with self._state_lock:
+            logs = list(self.execution_log)
+            cache_size = len(self.cache)
+        total = len(logs)
+        success = sum(1 for log in logs if log["status"] == "success")
+        avg_duration = sum(log["duration"] for log in logs) / total if total > 0 else 0
         return {
             "server": self.name,
             "total_executions": total,
@@ -140,5 +154,5 @@ class MCPServer:
             "success_rate": success / total if total > 0 else 0,
             "avg_duration": avg_duration,
             "tools": len(self.tools),
-            "cache_size": len(self.cache)
+            "cache_size": cache_size
         }
