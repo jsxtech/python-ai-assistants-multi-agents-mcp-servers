@@ -68,6 +68,18 @@ every module.
     during iteration". Memory ops are now lock-guarded and `save_state` snapshots
     under the agent lock.
 
+### Pass 4 — Static analysis (ruff + mypy)
+14. Removed 9 unused imports (ruff F401).
+15. Fixed implicit-`Optional` type hints (PEP 484): `EventBus.get_events`,
+    `StateManager.save_state`/`load_state`. These matched the same defect class
+    as the earlier `Agent.remember` hint fix.
+16. Widened `parallel_execute` `tasks` annotation from `List[Dict[str, str]]` to
+    `List[Dict[str, Any]]` to match the actual mixed value types (this also
+    cleared a false-positive mypy `submit` arg-type warning).
+
+    Remaining ruff findings are cosmetic only (PEP 585 builtin generics,
+    blind-`except` style) and were intentionally left as-is.
+
 ## Test Suite
 
 `tests/` — 90 tests, all passing (`pytest`). Covers:
