@@ -2,9 +2,9 @@
 import json
 
 import pytest
+from conftest import EchoAgent
 
 from learning import AgentLearning
-from conftest import EchoAgent
 
 
 def build():
