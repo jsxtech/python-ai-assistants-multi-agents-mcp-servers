@@ -45,28 +45,32 @@ class Agent:
         raise ValueError(f"Server {server_name} not found")
 
     def remember(self, key: str, value: Any, ttl: Optional[int] = None):
-        self.memory[key] = {
-            "key": key,
-            "value": value,
-            "timestamp": time.time(),
-            "expires_at": time.time() + ttl if ttl is not None else None
-        }
+        with self._lock:
+            self.memory[key] = {
+                "key": key,
+                "value": value,
+                "timestamp": time.time(),
+                "expires_at": time.time() + ttl if ttl is not None else None
+            }
 
     def recall(self, key: str) -> Any:
-        item = self.memory.get(key)
-        if item is None:
+        with self._lock:
+            item = self.memory.get(key)
+            if item is None:
+                return None
+            if item["expires_at"] is None or item["expires_at"] > time.time():
+                return item["value"]
+            # Expired — clean up
+            del self.memory[key]
             return None
-        if item["expires_at"] is None or item["expires_at"] > time.time():
-            return item["value"]
-        # Expired — clean up
-        del self.memory[key]
-        return None
 
     def forget(self, key: str):
-        self.memory.pop(key, None)
+        with self._lock:
+            self.memory.pop(key, None)
 
     def clear_memory(self):
-        self.memory.clear()
+        with self._lock:
+            self.memory.clear()
 
     def _execute(self, task: str, context: Optional[Dict] = None) -> Any:
         """Override this method in subclasses to perform actual work (e.g. call an LLM).
