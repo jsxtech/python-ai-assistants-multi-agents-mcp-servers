@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "python-ai-assistants-multi-agents-mcp-servers"
+version = "0.1.0"
+description = "Minimal multi-agent AI assistant system with MCP servers (stdlib only)."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+dependencies = []  # runtime uses the Python standard library only
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0.0", "ruff>=0.6"]
+
+[tool.ruff]
+# Pin the target version so ruff does NOT suggest PEP 585 / PEP 604 annotation
+# rewrites (dict[...] / X | None) that would break the declared Python 3.8 floor.
+target-version = "py38"
+line-length = 120
+
+[tool.ruff.lint]
+# Curated ruleset. Deliberately excludes rules that conflict with this
+# codebase's intentional design (see per-rule notes below).
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+    # Blind `except Exception` is intentional: callbacks, event handlers, and
+    # per-task execution must be isolated so one failure cannot crash the caller.
+    "BLE001",
+    # Long lines are acceptable in this codebase (readable dict/log literals).
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# `assert` is the standard pytest idiom; and test files legitimately use it.
+"tests/*" = ["S101"]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "agent", "mcp_server", "multi_agent_system", "workflow", "learning",
+    "collaboration", "event_bus", "scheduler", "resilience", "persistence",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-q"
