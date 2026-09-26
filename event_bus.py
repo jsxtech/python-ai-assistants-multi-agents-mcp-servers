@@ -1,7 +1,7 @@
-from typing import Dict, List, Callable, Optional
-from collections import deque
 import logging
 import time
+from collections import deque
+from typing import Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
