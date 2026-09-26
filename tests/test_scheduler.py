@@ -1,8 +1,9 @@
 """Tests for TaskScheduler: delayed, recurring, cancellation, error isolation."""
 
-from scheduler import TaskScheduler
-from multi_agent_system import MultiAgentSystem
 from conftest import EchoAgent
+
+from multi_agent_system import MultiAgentSystem
+from scheduler import TaskScheduler
 
 
 def build_scheduler():
