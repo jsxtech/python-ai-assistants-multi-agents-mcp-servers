@@ -1,7 +1,7 @@
-from typing import Dict, List, Any
-from collections import deque
-import time
 import hashlib
+import time
+from collections import deque
+from typing import Any, Dict, List
 
 
 class AgentCollaboration:
