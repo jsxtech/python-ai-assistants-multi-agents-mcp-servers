@@ -1,7 +1,7 @@
-from typing import List, Dict, Any, Callable, Optional
-from collections import deque
-import time
 import threading
+import time
+from collections import deque
+from typing import Any, Callable, Dict, List, Optional
 
 
 class Agent:
