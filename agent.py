@@ -18,9 +18,19 @@ class Agent:
         self.memory: Dict[str, Dict] = {}
         self.task_history: deque = deque(maxlen=self.MAX_HISTORY)
         self.callbacks: List[Callable] = []
-        self.state = "idle"
+        self._active = 0  # number of in-flight process() calls (guarded by _lock)
         self.max_retries = 3
         self._lock = threading.Lock()
+
+    @property
+    def state(self) -> str:
+        """Return 'busy' while any process() call is in flight, else 'idle'.
+
+        Derived from an atomic counter so concurrent tasks on the same agent
+        report state correctly (a binary flag would race).
+        """
+        with self._lock:
+            return "busy" if self._active > 0 else "idle"
 
     def add_mcp_server(self, server):
         self.mcp_servers.append(server)
@@ -34,7 +44,7 @@ class Agent:
                 return server.execute(tool_name, params)
         raise ValueError(f"Server {server_name} not found")
 
-    def remember(self, key: str, value: Any, ttl: int = None):
+    def remember(self, key: str, value: Any, ttl: Optional[int] = None):
         self.memory[key] = {
             "key": key,
             "value": value,
@@ -68,55 +78,56 @@ class Agent:
 
     def process(self, task: str, context: Optional[Dict] = None, retry: int = 0) -> Dict[str, Any]:
         with self._lock:
-            self.state = "busy"
+            self._active += 1
 
-        start_time = time.time()
-        self.context.append({"role": "user", "content": task})
+        try:
+            start_time = time.time()
+            self.context.append({"role": "user", "content": task})
 
-        # Clamp retry to valid range
-        retry = min(retry, self.max_retries)
-        result = None
+            # Clamp retry to valid range
+            retry = min(retry, self.max_retries)
+            result = None
 
-        for attempt in range(retry, self.max_retries + 1):
-            try:
-                work_result = self._execute(task, context)
-                result = {
-                    "agent": self.name,
-                    "task": task,
-                    "status": "completed",
-                    "result": work_result,
-                    "duration": time.time() - start_time,
-                    "context": context,
-                    "retry_count": attempt
-                }
-                break
-            except Exception as e:
-                if attempt >= self.max_retries:
+            for attempt in range(retry, self.max_retries + 1):
+                try:
+                    work_result = self._execute(task, context)
                     result = {
                         "agent": self.name,
                         "task": task,
-                        "status": "failed",
-                        "error": str(e),
+                        "status": "completed",
+                        "result": work_result,
                         "duration": time.time() - start_time,
+                        "context": context,
                         "retry_count": attempt
                     }
+                    break
+                except Exception as e:
+                    if attempt >= self.max_retries:
+                        result = {
+                            "agent": self.name,
+                            "task": task,
+                            "status": "failed",
+                            "error": str(e),
+                            "duration": time.time() - start_time,
+                            "retry_count": attempt
+                        }
 
-        # Defensive fallback: the loop above always assigns `result`, but guard
-        # against future changes leaving it None so we never corrupt task_history.
-        if result is None:
-            result = {
-                "agent": self.name,
-                "task": task,
-                "status": "failed",
-                "error": "No result produced",
-                "duration": time.time() - start_time,
-                "retry_count": self.max_retries
-            }
+            # Defensive fallback: the loop above always assigns `result`, but guard
+            # against future changes leaving it None so we never corrupt task_history.
+            if result is None:
+                result = {
+                    "agent": self.name,
+                    "task": task,
+                    "status": "failed",
+                    "error": "No result produced",
+                    "duration": time.time() - start_time,
+                    "retry_count": self.max_retries
+                }
 
-        self.task_history.append(result)
-
-        with self._lock:
-            self.state = "idle"
+            self.task_history.append(result)
+        finally:
+            with self._lock:
+                self._active -= 1
 
         for callback in self.callbacks:
             try:
@@ -130,12 +141,16 @@ class Agent:
         return {server.name: server.list_tools() for server in self.mcp_servers}
 
     def get_metrics(self) -> Dict:
-        total = len(self.task_history)
-        completed = sum(1 for t in self.task_history if t["status"] == "completed")
+        # Snapshot under lock: another thread may append to task_history
+        # concurrently (deque iteration would otherwise raise RuntimeError).
+        with self._lock:
+            history = list(self.task_history)
+        total = len(history)
+        completed = sum(1 for t in history if t["status"] == "completed")
         return {
             "total_tasks": total,
             "completed": completed,
             "failed": total - completed,
             "success_rate": completed / total if total > 0 else 0,
-            "avg_duration": sum(t["duration"] for t in self.task_history) / total if total > 0 else 0
+            "avg_duration": sum(t["duration"] for t in history) / total if total > 0 else 0
         }
