@@ -126,15 +126,21 @@ class MultiAgentSystem:
     def get_system_status(self) -> Dict:
         with self._lock:
             agents_snapshot = dict(self.agents)
+            shared_memory_keys = list(self.shared_memory.keys())
+            total_events = len(self.event_log)
+        # Agent state/metrics are read outside the system lock; each agent guards
+        # its own internal state, and this avoids holding the system lock during
+        # potentially slow metric computation.
+        agents_status = {name: {
+            "role": agent.role,
+            "state": agent.state,
+            "tasks_completed": len(agent.task_history),
+            "metrics": agent.get_metrics()
+        } for name, agent in agents_snapshot.items()}
         return {
-            "agents": {name: {
-                "role": agent.role,
-                "state": agent.state,
-                "tasks_completed": len(agent.task_history),
-                "metrics": agent.get_metrics()
-            } for name, agent in agents_snapshot.items()},
-            "shared_memory_keys": list(self.shared_memory.keys()),
-            "total_events": len(self.event_log),
+            "agents": agents_status,
+            "shared_memory_keys": shared_memory_keys,
+            "total_events": total_events,
             "active_agents": sum(1 for a in agents_snapshot.values() if a.state == "busy")
         }
 
