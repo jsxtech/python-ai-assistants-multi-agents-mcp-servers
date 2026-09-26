@@ -2,9 +2,9 @@
 import time
 
 import pytest
+from conftest import EchoAgent
 
 from multi_agent_system import MultiAgentSystem
-from conftest import EchoAgent
 
 
 def build_system():
