@@ -1,9 +1,11 @@
-from typing import List, Dict, Any, Callable, Optional
-from collections import deque
-from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeoutError
-from agent import Agent
-import time
 import threading
+import time
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as FuturesTimeoutError
+from typing import Any, Callable, Dict, List, Optional
+
+from agent import Agent
 
 
 class MultiAgentSystem:
