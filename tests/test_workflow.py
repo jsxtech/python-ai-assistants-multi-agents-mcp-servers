@@ -92,7 +92,7 @@ def test_missing_agent_without_handler_raises():
     s = build_system()
     wf = Workflow("w", max_retries=1)
     wf.add_step("ghost", "willraise")
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError, match="not found"):
         wf.execute(s)
 
 
