@@ -118,7 +118,7 @@ for rank, entry in enumerate(leaderboard, 1):
 print("\n=== Conditional Workflow ===")
 workflow = Workflow("conditional_pipeline", max_retries=2)
 workflow.add_step("researcher", "Gather data")
-workflow.add_step("analyst", "Analyze if data exists", depends_on=[0], 
+workflow.add_step("analyst", "Analyze if data exists", depends_on=[0],
                   condition=lambda r: r.get(0, {}).get("status") == "completed")
 workflow.add_step("coder", "Generate report", depends_on=[1])
 
