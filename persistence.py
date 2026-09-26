@@ -1,13 +1,13 @@
 import json
 import time
-from typing import Dict, Any
+from typing import Dict, Optional
 
 
 class StateManager:
     def __init__(self, filepath: str = "system_state.json"):
         self.filepath = filepath
 
-    def save_state(self, system, filepath: str = None):
+    def save_state(self, system, filepath: Optional[str] = None):
         """Save system state to file"""
         filepath = filepath or self.filepath
 
@@ -48,7 +48,7 @@ class StateManager:
         with open(filepath, 'w') as f:
             json.dump(state, f, indent=2, default=str)
 
-    def load_state(self, filepath: str = None) -> Dict:
+    def load_state(self, filepath: Optional[str] = None) -> Dict:
         """Load system state from file"""
         filepath = filepath or self.filepath
         try:
