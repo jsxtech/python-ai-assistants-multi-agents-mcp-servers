@@ -73,14 +73,23 @@ class Workflow:
             # Execute step with retry
             context = {f"step_{dep_id}": results[dep_id] for dep_id in step["depends_on"]}
 
+            last_result = None
             for attempt in range(self.max_retries):
                 try:
                     result = system.delegate(step["agent"], step["task"], context)
+                    last_result = result
 
-                    # Check if the agent itself reported failure
-                    if result.get("status") == "failed" and step["step_id"] in self.error_handlers:
-                        error = Exception(result.get("error", "Agent task failed"))
-                        result = self.error_handlers[step["step_id"]](error, step, context)
+                    # The agent catches its own exceptions and reports failure via
+                    # status rather than raising, so retry here on reported failure.
+                    if result.get("status") == "failed":
+                        if attempt < self.max_retries - 1:
+                            continue  # retry
+                        # Retries exhausted — route to error handler if present
+                        if step["step_id"] in self.error_handlers:
+                            error = Exception(result.get("error", "Agent task failed"))
+                            result = self.error_handlers[step["step_id"]](error, step, context)
+                        results[step["step_id"]] = result
+                        break
 
                     results[step["step_id"]] = result
                     break
@@ -91,6 +100,11 @@ class Workflow:
                         break
                     if attempt == self.max_retries - 1:
                         raise
+            else:
+                # Loop finished without break (all retries returned failure and no
+                # handler consumed it) — persist the last observed result.
+                if last_result is not None:
+                    results[step["step_id"]] = last_result
 
         return list(results.values())
 
@@ -144,11 +158,24 @@ class Workflow:
 
             for i, step in enumerate(eligible_steps):
                 step_result = level_results[i]
-                # Check if we got an error/failure and have an error handler
+                step_context = {f"step_{dep_id}": results[dep_id] for dep_id in step["depends_on"] if dep_id in results}
+
+                # Retry failed/errored steps (agents report failure via status
+                # rather than raising, so parallel_execute returns a result dict).
+                attempt = 1
+                while step_result.get("status") in ("error", "failed") and attempt < self.max_retries:
+                    retry_results = system.parallel_execute([{
+                        "agent": step["agent"],
+                        "task": step["task"],
+                        "context": step_context
+                    }])
+                    step_result = retry_results[0]
+                    attempt += 1
+
+                # Still failing after retries — route to error handler if present
                 if step_result.get("status") in ("error", "failed") and step["step_id"] in self.error_handlers:
                     error = Exception(step_result.get("error", "Task failed"))
-                    context = {f"step_{dep_id}": results[dep_id] for dep_id in step["depends_on"] if dep_id in results}
-                    step_result = self.error_handlers[step["step_id"]](error, step, context)
+                    step_result = self.error_handlers[step["step_id"]](error, step, step_context)
                 results[step["step_id"]] = step_result
 
         return list(results.values())
