@@ -101,6 +101,18 @@ class Agent:
                         "retry_count": attempt
                     }
 
+        # Defensive fallback: the loop above always assigns `result`, but guard
+        # against future changes leaving it None so we never corrupt task_history.
+        if result is None:
+            result = {
+                "agent": self.name,
+                "task": task,
+                "status": "failed",
+                "error": "No result produced",
+                "duration": time.time() - start_time,
+                "retry_count": self.max_retries
+            }
+
         self.task_history.append(result)
 
         with self._lock:
