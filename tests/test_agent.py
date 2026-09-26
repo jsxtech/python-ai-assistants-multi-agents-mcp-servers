@@ -1,7 +1,5 @@
 """Tests for Agent: memory/TTL, retry, metrics, callbacks, tools."""
-import time
 
-from agent import Agent
 from conftest import EchoAgent, FailingAgent, AlwaysFailAgent
 
 

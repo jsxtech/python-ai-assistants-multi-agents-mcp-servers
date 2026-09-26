@@ -1,6 +1,5 @@
 """Tests for persistence: StateManager and MetricsCollector."""
 import json
-import os
 
 from persistence import StateManager, MetricsCollector
 from multi_agent_system import MultiAgentSystem

@@ -3,7 +3,7 @@ import pytest
 
 from multi_agent_system import MultiAgentSystem
 from workflow import Workflow
-from conftest import EchoAgent, FailingAgent, AlwaysFailAgent
+from conftest import EchoAgent, AlwaysFailAgent
 
 
 def build_system(extra_agents=None):
