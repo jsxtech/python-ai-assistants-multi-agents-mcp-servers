@@ -43,7 +43,7 @@ class MultiAgentSystem:
 
         return agent.process(task, context)
 
-    def parallel_execute(self, tasks: List[Dict[str, str]], timeout: Optional[int] = None) -> List[Dict]:
+    def parallel_execute(self, tasks: List[Dict[str, Any]], timeout: Optional[int] = None) -> List[Dict]:
         """Execute tasks in parallel, returning results in the same order as the input tasks list.
 
         If timeout is exceeded, tasks that haven't completed will have status 'error' with a timeout message.
