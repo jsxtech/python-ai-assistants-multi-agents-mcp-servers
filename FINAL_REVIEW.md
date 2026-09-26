@@ -137,7 +137,7 @@ Examples:
 | Modules | 12 | ✅ Well organized |
 | Dependencies | 0 external | ✅ Stdlib only |
 | Type Coverage | ~95% | ✅ Excellent |
-| Test Coverage | 86 automated (pytest) | ✅ All passing |
+| Test Coverage | 90 automated (pytest) | ✅ All passing |
 | Documentation | Complete | ✅ README + examples |
 
 ---

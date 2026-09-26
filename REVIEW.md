@@ -50,9 +50,27 @@ every module.
 9. **Minor:** `Agent.remember` TTL type hint corrected to `Optional[int]`;
    `MetricsCollector.record` uses `result.get("status")` defensively.
 
+### Pass 3 — Independent audit follow-ups
+10. **`parallel_execute` caught the wrong `TimeoutError` on Python 3.8–3.10.**
+    `concurrent.futures.TimeoutError` is only aliased to the builtin `TimeoutError`
+    since Python 3.11; on the supported 3.8–3.10 range the `except TimeoutError:`
+    clause would miss the timeout and propagate, breaking the documented contract.
+    Now imports and catches `concurrent.futures.TimeoutError` explicitly.
+11. **`MCPServer.get_stats` mutation-during-iteration.** Same class of bug as #7,
+    but in `execution_log`: `execute()` appends from worker threads while
+    `get_stats()` iterates. Added `_state_lock`; log/cache appends and the stats
+    read now snapshot under it.
+12. **`MCPServer` cache check-then-act race.** `clear_cache()` between the
+    membership check and the subscript could raise `KeyError`. Replaced with a
+    locked defensive `.get()`.
+13. **`StateManager.save_state` memory iteration race.** Iterating `agent.memory`
+    while `recall`/`remember` mutate it could raise "dictionary changed size
+    during iteration". Memory ops are now lock-guarded and `save_state` snapshots
+    under the agent lock.
+
 ## Test Suite
 
-`tests/` — 86 tests, all passing (`pytest`). Covers:
+`tests/` — 90 tests, all passing (`pytest`). Covers:
 - Agent: success/retry/failure paths, TTL memory, metrics, callback isolation, tools
 - MCP server: caching, hooks, error handling, **rate-limit logging**, stats, unserializable params
 - Multi-agent: delegation, middleware, **parallel ordering & timeout**, shared memory/TTL, leaderboard, **concurrency (state counter + status stability)**
@@ -66,7 +84,7 @@ every module.
 
 ### Verification
 - `python3 -m py_compile *.py tests/*.py` → OK
-- `python3 -m pytest tests/` → **86 passed**
+- `python3 -m pytest tests/` → **90 passed**
 - Concurrency tests stable across repeated runs
 - `example.py` and `advanced_example.py` → both run clean
 
@@ -74,7 +92,8 @@ every module.
 - `CircuitBreaker` half-open allows a brief multi-probe window under high
   concurrency — acceptable for the current use case.
 - `LoadBalancer` `least_busy`/`best_performance` read agent metrics without the
-  system lock (read-only, low risk).
+  system lock, but each agent's `get_metrics()` is internally thread-safe, so
+  reads cannot crash (they may just be momentarily stale).
 - No async I/O — not required for the current synchronous design.
 
 ## Conclusion
