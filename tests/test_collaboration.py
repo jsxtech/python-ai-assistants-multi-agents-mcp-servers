@@ -1,9 +1,9 @@
 """Tests for AgentCollaboration: negotiate, collaborate, vote."""
 import pytest
+from conftest import EchoAgent
 
 from collaboration import AgentCollaboration
 from multi_agent_system import MultiAgentSystem
-from conftest import EchoAgent
 
 
 def build():
