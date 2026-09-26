@@ -1,5 +1,7 @@
 """Tests for Agent: memory/TTL, retry, metrics, callbacks, tools."""
 
+import pytest
+
 from conftest import EchoAgent, FailingAgent, AlwaysFailAgent
 
 
@@ -87,11 +89,8 @@ def test_callbacks_invoked_and_bad_callback_isolated():
 def test_use_tool_and_missing_server(mcp_server):
     agent = EchoAgent("a", "role", mcp_servers=[mcp_server])
     assert agent.use_tool("test_server", "read", {"path": "/x"}) == "content:/x"
-    try:
+    with pytest.raises(ValueError, match="not found"):
         agent.use_tool("nope", "read", {"path": "/x"})
-        assert False, "expected ValueError"
-    except ValueError:
-        pass
 
 
 def test_get_available_tools(mcp_server):
