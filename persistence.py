@@ -16,6 +16,18 @@ class StateManager:
             agents_snapshot = dict(system.agents)
             shared_keys = list(system.shared_memory.keys())
 
+        # Snapshot each agent's memory under its own lock. recall()/remember()
+        # mutate the dict from other threads, so iterating it directly here could
+        # raise "dictionary changed size during iteration".
+        agent_memory_snapshots = {}
+        for name, agent in agents_snapshot.items():
+            lock = getattr(agent, "_lock", None)
+            if lock is not None:
+                with lock:
+                    agent_memory_snapshots[name] = list(agent.memory.items())[:50]
+            else:
+                agent_memory_snapshots[name] = list(agent.memory.items())[:50]
+
         state = {
             "agents": {
                 name: {
@@ -23,7 +35,7 @@ class StateManager:
                     "capabilities": agent.capabilities,
                     "memory": {
                         k: {mk: mv for mk, mv in m.items() if not callable(mv)}
-                        for k, m in list(agent.memory.items())[:50]
+                        for k, m in agent_memory_snapshots[name]
                     },
                     "task_count": len(agent.task_history)
                 }
