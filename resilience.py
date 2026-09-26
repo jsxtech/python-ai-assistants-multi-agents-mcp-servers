@@ -1,6 +1,6 @@
-from typing import List
-import time
 import threading
+import time
+from typing import List
 
 
 class CircuitBreaker:
