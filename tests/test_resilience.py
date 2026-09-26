@@ -2,10 +2,10 @@
 import time
 
 import pytest
-
-from resilience import CircuitBreaker, LoadBalancer, RateLimiter
-from multi_agent_system import MultiAgentSystem
 from conftest import EchoAgent
+
+from multi_agent_system import MultiAgentSystem
+from resilience import CircuitBreaker, LoadBalancer, RateLimiter
 
 
 def test_circuit_breaker_opens_after_threshold():
