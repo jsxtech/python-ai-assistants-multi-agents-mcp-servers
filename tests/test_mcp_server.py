@@ -89,7 +89,7 @@ def test_rate_limit_after_hook_fires_on_rejection():
     seen = []
     s.add_hook("after", lambda entry: seen.append(entry["status"]))
     s.execute("read", {"path": "/1"})
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="Rate limit exceeded"):
         s.execute("read", {"path": "/2"})
     assert "rate_limited" in seen
 
@@ -99,7 +99,7 @@ def test_stats_reporting():
     s.register_tool("read", lambda path: "c")
     s.register_tool("boom", lambda: (_ for _ in ()).throw(ValueError("x")))
     s.execute("read", {"path": "/1"})
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="failed"):
         s.execute("boom", {})
     stats = s.get_stats()
     assert stats["total_executions"] == 2
