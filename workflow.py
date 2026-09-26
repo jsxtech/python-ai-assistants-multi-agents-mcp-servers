@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Callable, Optional
+from typing import List, Dict, Callable, Optional
 from collections import deque
 from multi_agent_system import MultiAgentSystem
 import time
