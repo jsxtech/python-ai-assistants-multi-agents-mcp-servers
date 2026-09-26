@@ -52,7 +52,7 @@ class StateManager:
         """Load system state from file"""
         filepath = filepath or self.filepath
         try:
-            with open(filepath, 'r') as f:
+            with open(filepath) as f:
                 return json.load(f)
         except FileNotFoundError:
             return {}
