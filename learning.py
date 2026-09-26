@@ -51,5 +51,28 @@ class AgentLearning:
         return json.dumps(self.patterns, indent=2)
 
     def import_knowledge(self, knowledge: str):
-        """Import learned patterns"""
-        self.patterns = json.loads(knowledge)
+        """Import learned patterns.
+
+        Validates that the payload is a JSON object mapping task types to
+        pattern dicts with numeric ``count`` and ``avg_rating`` fields. Raises
+        ValueError on malformed input rather than silently corrupting state.
+        """
+        try:
+            data = json.loads(knowledge)
+        except (json.JSONDecodeError, TypeError) as e:
+            raise ValueError(f"Invalid knowledge JSON: {e}") from e
+
+        if not isinstance(data, dict):
+            raise ValueError("Knowledge must be a JSON object of task-type patterns")
+
+        validated: Dict[str, Dict] = {}
+        for task_type, pattern in data.items():
+            if not isinstance(pattern, dict):
+                raise ValueError(f"Pattern for '{task_type}' must be an object")
+            count = pattern.get("count", 0)
+            avg_rating = pattern.get("avg_rating", 0)
+            if not isinstance(count, (int, float)) or not isinstance(avg_rating, (int, float)):
+                raise ValueError(f"Pattern for '{task_type}' must have numeric count and avg_rating")
+            validated[str(task_type)] = {"count": count, "avg_rating": avg_rating}
+
+        self.patterns = validated
