@@ -1,6 +1,6 @@
-from typing import Dict, List
-from collections import deque
 import json
+from collections import deque
+from typing import Dict, List
 
 
 class AgentLearning:
