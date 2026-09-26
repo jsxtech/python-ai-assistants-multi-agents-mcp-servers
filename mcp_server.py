@@ -1,9 +1,9 @@
 import json
 import logging
-from typing import Any, Callable, Dict, Optional
-from collections import deque
-import time
 import threading
+import time
+from collections import deque
+from typing import Any, Callable, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
