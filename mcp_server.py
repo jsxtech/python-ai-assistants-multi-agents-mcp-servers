@@ -43,8 +43,9 @@ class MCPServer:
                 current_time = time.time()
                 self.rate_limit_window = [t for t in self.rate_limit_window if current_time - t < 60]
                 if len(self.rate_limit_window) >= self.rate_limit:
-                    raise Exception("Rate limit exceeded")
+                    return False
                 self.rate_limit_window.append(current_time)
+        return True
 
     def _get_cache_key(self, tool_name: str, params: dict) -> str:
         try:
@@ -58,7 +59,20 @@ class MCPServer:
         if tool_name not in self.tools:
             raise ValueError(f"Tool {tool_name} not found")
 
-        self._check_rate_limit()
+        if not self._check_rate_limit():
+            # Record the rejection so it surfaces in stats/observability.
+            log_entry = {
+                "tool": tool_name,
+                "params": params,
+                "result": "Rate limit exceeded",
+                "status": "rate_limited",
+                "duration": 0.0,
+                "timestamp": time.time()
+            }
+            self.execution_log.append(log_entry)
+            for hook in self.hooks["after"]:
+                hook(log_entry)
+            raise Exception(f"Rate limit exceeded for server '{self.name}'")
 
         # Check cache
         cache_key = self._get_cache_key(tool_name, params)
