@@ -70,7 +70,8 @@ class MetricsCollector:
         """Record task execution metrics"""
         self.metrics["requests"] += 1
 
-        if result["status"] == "completed":
+        is_success = result.get("status") == "completed"
+        if is_success:
             self.metrics["successes"] += 1
         else:
             self.metrics["failures"] += 1
@@ -86,7 +87,7 @@ class MetricsCollector:
 
         agent_metrics = self.metrics["agent_metrics"][agent_name]
         agent_metrics["requests"] += 1
-        if result["status"] == "completed":
+        if is_success:
             agent_metrics["successes"] += 1
         else:
             agent_metrics["failures"] += 1
