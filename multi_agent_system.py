@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Callable, Optional
 from collections import deque
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeoutError
 from agent import Agent
 import time
 import threading
@@ -72,9 +72,10 @@ class MultiAgentSystem:
                         results[idx] = future.result()
                     except Exception as e:
                         results[idx] = {"status": "error", "error": str(e)}
-            except TimeoutError:
-                # Some futures didn't complete within the timeout.
-                # Mark incomplete ones with a timeout error (they already have the default).
+            except FuturesTimeoutError:
+                # Some futures didn't complete within the timeout. On Python
+                # 3.8-3.10 concurrent.futures.TimeoutError is a distinct class
+                # from the builtin TimeoutError, so it must be caught explicitly.
                 for future, idx in future_to_index.items():
                     if not future.done():
                         results[idx] = {"status": "error", "error": "Task timed out"}
