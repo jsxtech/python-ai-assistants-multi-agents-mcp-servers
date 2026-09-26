@@ -1,4 +1,4 @@
-from typing import Dict, List, Callable
+from typing import Dict, List, Callable, Optional
 from collections import deque
 import logging
 import time
@@ -46,7 +46,7 @@ class EventBus:
                         f"Handler {handler!r} failed for event '{event_type}': {e}"
                     )
 
-    def get_events(self, event_type: str = None, since: float = None) -> List[Dict]:
+    def get_events(self, event_type: Optional[str] = None, since: Optional[float] = None) -> List[Dict]:
         events = list(self.event_history)
         if event_type:
             events = [e for e in events if e["type"] == event_type]
