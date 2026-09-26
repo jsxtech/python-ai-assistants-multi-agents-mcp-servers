@@ -1,9 +1,9 @@
 """Tests for Workflow: dependencies, conditions, skip cascade, retry, error handlers, parallel."""
 import pytest
+from conftest import AlwaysFailAgent, EchoAgent
 
 from multi_agent_system import MultiAgentSystem
 from workflow import Workflow
-from conftest import EchoAgent, AlwaysFailAgent
 
 
 def build_system(extra_agents=None):
