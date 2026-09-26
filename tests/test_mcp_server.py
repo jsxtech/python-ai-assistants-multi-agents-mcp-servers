@@ -114,3 +114,74 @@ def test_unserializable_params_cache_key_fallback():
     s.register_tool("t", lambda obj: "ok", cacheable=True)
     # set is not JSON-serializable; should not crash cache key generation
     assert s.execute("t", {"obj": {1, 2, 3}}) == "ok"
+
+
+def test_get_stats_stable_under_concurrent_execute():
+    """get_stats must not raise while execute() appends from other threads.
+
+    Regression for 'RuntimeError: deque mutated during iteration' in get_stats.
+    """
+    import threading
+
+    s = make_server()
+    s.register_tool("read", lambda path: f"c:{path}", cacheable=False)
+
+    stop = threading.Event()
+    errors = []
+
+    def hammer():
+        i = 0
+        while not stop.is_set():
+            try:
+                s.execute("read", {"path": f"/{i}"})
+            except Exception as e:  # pragma: no cover
+                errors.append(e)
+            i += 1
+
+    worker = threading.Thread(target=hammer)
+    worker.start()
+    try:
+        for _ in range(200):
+            stats = s.get_stats()
+            assert stats["total_executions"] >= 0
+    finally:
+        stop.set()
+        worker.join(timeout=2)
+
+    assert errors == []
+
+
+def test_cache_get_after_clear_no_keyerror():
+    """A concurrent clear_cache between check and read must not raise KeyError.
+
+    We exercise the defensive .get() path directly.
+    """
+    import threading
+
+    s = make_server()
+    s.register_tool("read", lambda path: f"c:{path}", cacheable=True)
+
+    stop = threading.Event()
+    errors = []
+
+    def clearer():
+        while not stop.is_set():
+            s.clear_cache()
+
+    def reader():
+        while not stop.is_set():
+            try:
+                s.execute("read", {"path": "/same"})
+            except Exception as e:  # pragma: no cover
+                errors.append(e)
+
+    threads = [threading.Thread(target=clearer), threading.Thread(target=reader)]
+    for t in threads:
+        t.start()
+    import time as _t
+    _t.sleep(0.2)
+    stop.set()
+    for t in threads:
+        t.join(timeout=2)
+
+    assert errors == []

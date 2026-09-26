@@ -62,8 +62,25 @@ class SlowAgent(EchoAgent):
 def test_parallel_execute_timeout_marks_incomplete():
     s = MultiAgentSystem(max_workers=2)
     s.add_agent(SlowAgent("slow", "role"))
+    # Must NOT raise (on Python 3.8-3.10 concurrent.futures.TimeoutError is a
+    # distinct class from the builtin; parallel_execute must catch the right one)
+    # and must return a timeout error entry rather than propagating.
     results = s.parallel_execute([{"agent": "slow", "task": "t"}], timeout=0.05)
     assert results[0]["status"] == "error"
+    assert "tim" in results[0]["error"].lower()
+
+
+def test_parallel_execute_timeout_mixed_fast_and_slow():
+    s = MultiAgentSystem(max_workers=4)
+    s.add_agent(SlowAgent("slow", "role"))
+    s.add_agent(EchoAgent("fast", "role"))
+    results = s.parallel_execute(
+        [{"agent": "fast", "task": "quick"}, {"agent": "slow", "task": "t"}],
+        timeout=0.05,
+    )
+    # Order preserved; fast completes, slow times out — no exception raised.
+    assert results[0]["status"] == "completed"
+    assert results[1]["status"] == "error"
 
 
 def test_broadcast_hits_all_agents():

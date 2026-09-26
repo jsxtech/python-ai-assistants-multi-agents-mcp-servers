@@ -68,3 +68,40 @@ def test_metrics_reset():
     mc.record("a1", {"status": "completed", "duration": 0.1})
     mc.reset()
     assert mc.get_summary()["total_requests"] == 0
+
+
+def test_save_state_stable_while_agent_memory_mutates(tmp_path):
+    """save_state must not raise while an agent mutates its memory concurrently.
+
+    Regression for 'dictionary changed size during iteration'.
+    """
+    import threading
+
+    s = MultiAgentSystem()
+    agent = EchoAgent("a1", "role")
+    s.add_agent(agent)
+    mgr = StateManager(str(tmp_path / "state.json"))
+
+    stop = threading.Event()
+    errors = []
+
+    def churn():
+        i = 0
+        while not stop.is_set():
+            agent.remember(f"k{i % 100}", i)
+            agent.forget(f"k{(i + 1) % 100}")
+            i += 1
+
+    worker = threading.Thread(target=churn)
+    worker.start()
+    try:
+        for _ in range(100):
+            try:
+                mgr.save_state(s)
+            except Exception as e:  # pragma: no cover
+                errors.append(e)
+    finally:
+        stop.set()
+        worker.join(timeout=2)
+
+    assert errors == []
