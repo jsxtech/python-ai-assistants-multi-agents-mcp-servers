@@ -112,3 +112,87 @@ def test_remove_agent():
     s.remove_agent("a1")
     with pytest.raises(ValueError):
         s.delegate("a1", "x")
+
+
+class BlockingAgent(EchoAgent):
+    """Agent that blocks in _execute until released, to observe concurrent state."""
+
+    def __init__(self, *args, **kwargs):
+        import threading as _t
+        super().__init__(*args, **kwargs)
+        self.entered = _t.Event()
+        self.release = _t.Event()
+        self.concurrent_active_seen = 0
+
+    def _execute(self, task, context=None):
+        self.entered.set()
+        # Record how many process() calls are in flight while we're blocked.
+        self.concurrent_active_seen = max(self.concurrent_active_seen, self._active)
+        self.release.wait(timeout=2)
+        return "done"
+
+
+def test_same_agent_concurrent_state_counter():
+    """Running the same agent concurrently must report 'busy' until ALL finish.
+
+    A binary busy/idle flag would incorrectly flip to idle when the first task
+    finished. The counter-based state must stay 'busy' until both complete.
+    """
+    import threading
+
+    agent = BlockingAgent("blk", "role", capabilities=["cap"])
+    s = MultiAgentSystem(max_workers=4)
+    s.add_agent(agent)
+
+    threads = [threading.Thread(target=lambda: s.delegate("blk", "t")) for _ in range(2)]
+    for t in threads:
+        t.start()
+
+    # Wait until at least one task is executing.
+    agent.entered.wait(timeout=2)
+    # Give the second thread a moment to also enter process().
+    time.sleep(0.05)
+    assert agent.state == "busy"
+    assert agent._active == 2  # both in flight simultaneously
+
+    # Release and let them finish.
+    agent.release.set()
+    for t in threads:
+        t.join(timeout=2)
+
+    assert agent.state == "idle"
+    assert agent._active == 0
+    assert len(agent.task_history) == 2  # both recorded, no corruption
+    assert agent.concurrent_active_seen == 2
+
+
+def test_get_system_status_stable_under_concurrent_delegation():
+    """get_system_status must not raise while agents are being delegated to."""
+    import threading
+
+    s = MultiAgentSystem(max_workers=4)
+    for i in range(5):
+        s.add_agent(EchoAgent(f"a{i}", "role", capabilities=["cap"]))
+
+    stop = threading.Event()
+    errors = []
+
+    def hammer():
+        while not stop.is_set():
+            try:
+                s.delegate("a0", "t")
+                s.share_data("k", "v")
+            except Exception as e:  # pragma: no cover
+                errors.append(e)
+
+    worker = threading.Thread(target=hammer)
+    worker.start()
+    try:
+        for _ in range(100):
+            status = s.get_system_status()
+            assert "agents" in status
+    finally:
+        stop.set()
+        worker.join(timeout=2)
+
+    assert errors == []
