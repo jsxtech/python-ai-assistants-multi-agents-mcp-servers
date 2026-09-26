@@ -1,9 +1,10 @@
 """Tests for persistence: StateManager and MetricsCollector."""
 import json
 
-from persistence import StateManager, MetricsCollector
-from multi_agent_system import MultiAgentSystem
 from conftest import EchoAgent
+
+from multi_agent_system import MultiAgentSystem
+from persistence import MetricsCollector, StateManager
 
 
 def build_system():
