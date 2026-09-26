@@ -1,7 +1,8 @@
-from typing import List, Dict, Callable, Optional
-from collections import deque
-from multi_agent_system import MultiAgentSystem
 import time
+from collections import deque
+from typing import Callable, Dict, List, Optional
+
+from multi_agent_system import MultiAgentSystem
 
 
 class Workflow:
