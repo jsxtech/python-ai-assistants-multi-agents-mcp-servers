@@ -1,8 +1,7 @@
 """Tests for Agent: memory/TTL, retry, metrics, callbacks, tools."""
 
 import pytest
-
-from conftest import EchoAgent, FailingAgent, AlwaysFailAgent
+from conftest import AlwaysFailAgent, EchoAgent, FailingAgent
 
 
 def test_process_success_records_completed():
