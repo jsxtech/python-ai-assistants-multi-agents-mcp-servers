@@ -15,7 +15,10 @@ def test_subscribe_and_publish():
 def test_unsubscribe():
     bus = EventBus()
     seen = []
-    handler = lambda e: seen.append(e)
+
+    def handler(e):
+        seen.append(e)
+
     bus.subscribe("evt", handler)
     bus.unsubscribe("evt", handler)
     bus.publish("evt", {"x": 1})
